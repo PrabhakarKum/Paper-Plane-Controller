@@ -40,10 +40,10 @@ public class PaperPlaneController : MonoBehaviour
     public TrailRenderer trailRendererRight;
     private Coroutine disableTrailCoroutine;
     
-    [Header("Debugging")]
+    [Header("Speed Text")]
     public float currentSpeed;
-    
     public TextMeshProUGUI speedText;
+    public TextMeshProUGUI heightText;
     public Vector2 moveInput { get; private set; }
     private bool boosting = false;
     private bool isLaunched = false;
@@ -143,11 +143,17 @@ public class PaperPlaneController : MonoBehaviour
 
     private void Update()
     {
+
+        float height = transform.position.y ;
+        heightText.text =  height.ToString("F2");
+        
         if (rb != null)
         {
             float speed =  Mathf.RoundToInt(rb.linearVelocity.magnitude);
             speedText.text = speed.ToString();
         }
+        
+        
     }
 
     void FixedUpdate()
