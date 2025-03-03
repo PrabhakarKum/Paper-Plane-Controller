@@ -19,8 +19,8 @@ Upon pressing Space key, an impulse force is applied forward and slightly upward
 The Rigidbody's gravity is activated upon launch.
 
 # Maneuvering
-The plane is controlled via pitch, roll, and yaw.
-Pitch (W/S): Tilts the nose up or down, affecting altitude and speed.
-Roll (A/D): Rolls the plane left or right, affecting lateral movement.
-Yaw: Automatically adjusts when rolling to turn the plane.
-Input is smoothed using Mathf.Lerp() for gradual transitions.
+The plane is controlled via pitch, roll, and yaw.  
+Pitch (W/S): Tilts the nose up or down, affecting altitude and speed.  
+Roll (A/D): Rolls the plane left or right, affecting lateral movement.  
+Yaw: Automatically adjusts when rolling to turn the plane.  
+Input is smoothed using Mathf.Lerp() for gradual transitions.  
