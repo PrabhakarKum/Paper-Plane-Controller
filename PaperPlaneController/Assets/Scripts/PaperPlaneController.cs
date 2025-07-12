@@ -1,10 +1,7 @@
-using System;
 using System.Collections;
-using System.Globalization;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Serialization;
 
 public class PaperPlaneController : MonoBehaviour
 {
@@ -44,7 +41,7 @@ public class PaperPlaneController : MonoBehaviour
     public float currentSpeed;
     public TextMeshProUGUI speedText;
     public TextMeshProUGUI heightText;
-    public Vector2 moveInput { get; private set; }
+    private Vector2 moveInput { get; set; }
     private bool boosting = false;
     private bool isLaunched = false;
     
@@ -62,14 +59,22 @@ public class PaperPlaneController : MonoBehaviour
         trailRendererLeft.enabled = false;
         trailRendererRight.enabled = false;
         
-        controls.FlightControls.Trail.performed += OnTrailEnable;
-        controls.FlightControls.Trail.canceled += OnTrailDisable;
-        
         controls.FlightControls.Enable();
     }
 
-    void OnEnable() => controls.FlightControls.Enable();
-    void OnDisable() => controls.FlightControls.Disable();
+    private void OnEnable()
+    {
+        controls.FlightControls.Enable();
+        controls.FlightControls.Trail.performed += OnTrailEnable;
+        controls.FlightControls.Trail.canceled += OnTrailDisable;
+    }
+
+    private void OnDisable()
+    {
+        controls.FlightControls.Disable();
+        controls.FlightControls.Trail.performed -= OnTrailDisable;
+        controls.FlightControls.Trail.canceled -= OnTrailDisable;
+    }
     
     public void OnMove(InputAction.CallbackContext context)
     {
@@ -84,11 +89,9 @@ public class PaperPlaneController : MonoBehaviour
     {
         if (context.performed)
         {
-            if (!boosting)
-            {
-                boosting = true;
-                StartCoroutine(EnableSpeedlinesWithDelay(0.01f));
-            }
+            if (boosting) return;
+            boosting = true;
+            StartCoroutine(EnableSpeedLinesWithDelay(0.01f));
         }
         else if (context.canceled)
         {
@@ -104,8 +107,8 @@ public class PaperPlaneController : MonoBehaviour
             LaunchPlane();
         }
     }
-    
-    public void OnTrailEnable(InputAction.CallbackContext context)
+
+    private void OnTrailEnable(InputAction.CallbackContext context)
     {
         if (disableTrailCoroutine != null)
         {
@@ -116,7 +119,7 @@ public class PaperPlaneController : MonoBehaviour
         
     }
 
-    public void OnTrailDisable(InputAction.CallbackContext context)
+    private void OnTrailDisable(InputAction.CallbackContext context)
     {
         if (disableTrailCoroutine != null)
         {
@@ -125,7 +128,7 @@ public class PaperPlaneController : MonoBehaviour
         disableTrailCoroutine = StartCoroutine(DisableTrailAfterDelay(2f));
     }
     
-    private IEnumerator EnableSpeedlinesWithDelay(float delay)
+    private IEnumerator EnableSpeedLinesWithDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
         if (boosting)
@@ -143,17 +146,7 @@ public class PaperPlaneController : MonoBehaviour
 
     private void Update()
     {
-
-        float height = transform.position.y ;
-        heightText.text =  height.ToString("F2");
-        
-        if (rb != null)
-        {
-            float speed =  Mathf.RoundToInt(rb.linearVelocity.magnitude);
-            speedText.text = speed.ToString();
-        }
-        
-        
+        UpdateUI();
     }
 
     void FixedUpdate()
@@ -164,8 +157,8 @@ public class PaperPlaneController : MonoBehaviour
             HandleInput();
         }
     }
-    
-    void LaunchPlane()
+
+    private void LaunchPlane()
     {
         if (!isLaunched || (currentSpeed < 0.01f && transform.position.y <= 0.6f))
         {
@@ -208,7 +201,7 @@ public class PaperPlaneController : MonoBehaviour
         // Apply Lift
         if (altitude < maxAltitude && currentSpeed > minGlideSpeed)
         {
-            float liftForce = Mathf.Clamp(currentSpeed  * liftMultiplier, 0, maxLiftForce);
+            var liftForce = Mathf.Clamp(currentSpeed  * liftMultiplier, 0, maxLiftForce);
             rb.AddForce(transform.up * liftForce, ForceMode.Force);
         }
         
@@ -233,17 +226,17 @@ public class PaperPlaneController : MonoBehaviour
         
         
         //Adjust Speed Based on Pitch (Up / Down)
-        float pitch = transform.eulerAngles.x;
+        var pitch = transform.eulerAngles.x;
         if (pitch > 180) pitch -= 360;
         
         if (pitch > 5f)  // Going up
         {
-            float climbSlowdown = 1f + (altitude / 50f);  // Higher altitude = more slowdown
+            var climbSlowdown = 1f + (altitude / 50f);  // Higher altitude = more slowdown
             rb.AddForce(transform.forward * liftMultiplier * climbSlowdown, ForceMode.Force);
         }
         else if (pitch < -5f) // 🔽 Nose Down
         {
-            float descentSpeedMultiplier = 2f + (Mathf.Abs(pitch) / 10f) + (altitude / 50f);
+            var descentSpeedMultiplier = 2f + (Mathf.Abs(pitch) / 10f) + (altitude / 50f);
             if (boosting)
             {
                 descentSpeedMultiplier *= 1.2f; // Boost increases descent effect
@@ -252,63 +245,97 @@ public class PaperPlaneController : MonoBehaviour
         }
         
         // Move sideways based on roll angle
-        float rollAngle = transform.eulerAngles.z;
+        var rollAngle = transform.eulerAngles.z;
         if (rollAngle > 180)
         {
             rollAngle -= 360; // Convert to -180 to 180
         }
-        float lateralVelocity = -Mathf.Sin(Mathf.Deg2Rad * rollAngle) * sideDriftMultiplier * 0.5f;
-        Vector3 targetVelocity = rb.linearVelocity + transform.right * lateralVelocity;
+        var lateralVelocity = -Mathf.Sin(Mathf.Deg2Rad * rollAngle) * sideDriftMultiplier * 0.5f;
+        var targetVelocity = rb.linearVelocity + transform.right * lateralVelocity;
         targetVelocity.x *= 0.95f;
         targetVelocity.x = Mathf.Clamp(targetVelocity.x, -maxSpeed * 0.3f, maxSpeed * 0.5f);
         rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, targetVelocity, Time.deltaTime * 2f);
         
 
         // Apply Drag (air resistance)
-        float dragForce = boostedDrag * currentSpeed  * currentSpeed ;
+        var dragForce = boostedDrag * currentSpeed  * currentSpeed ;
         rb.AddForce(-velocity.normalized * dragForce, ForceMode.Force);
 
         
         // Limit Speed
         rb.linearVelocity = Vector3.ClampMagnitude(rb.linearVelocity, boostedMaxSpeed);
         currentSpeed = rb.linearVelocity.magnitude;
-        
-        Debug.Log($"Altitude: {transform.position.y}");
-        
     }
 
-    void HandleInput()
+    // void HandleInput()
+    // {
+    //     // **Get Current Rotation**
+    //     Vector3 currentRotation = transform.eulerAngles;
+    //
+    //     // Convert rotation to -180 to +180 range
+    //     float pitch = (currentRotation.x > 180) ? currentRotation.x - 360 : currentRotation.x;
+    //     float roll = (currentRotation.z > 180) ? currentRotation.z - 360 : currentRotation.z;
+    //     float yaw = currentRotation.y;
+    //
+    //     // **Pitch (Nose Up/Down)**
+    //     float targetPitch = -moveInput.y * maxPitch;
+    //     pitch = Mathf.Lerp(pitch, targetPitch, Time.deltaTime * pitchSpeed);
+    //
+    //     // **Roll (Tilt Left/Right)**
+    //     float targetRoll = -moveInput.x * maxRoll; // "A" rolls left, "D" rolls right
+    //     roll = Mathf.Lerp(roll, targetRoll, Time.deltaTime * rollSpeed);
+    //     
+    //     // **Yaw Rotation (Turn Left/Right)**
+    //     float yawChange = moveInput.x * yawSpeed * Time.deltaTime;
+    //     yaw += yawChange;
+    //     
+    //     if (moveInput.x == 0)
+    //     {
+    //         roll = Mathf.Lerp(roll, 0, Time.deltaTime * resetSpeed);
+    //     }
+    //     
+    //     if (Mathf.Abs(moveInput.x) < 0.1f)  
+    //     {
+    //         yaw = Mathf.Lerp(yaw, currentRotation.y, Time.deltaTime * resetSpeed * 2f);
+    //     }
+    //     
+    //
+    //     // **Clamp Rotation to Limits**
+    //     pitch = Mathf.Clamp(pitch, -maxPitch, maxPitch);
+    //     roll = Mathf.Clamp(roll, -maxRoll, maxRoll);
+    //
+    //     // **Apply Rotation**
+    //     transform.rotation = Quaternion.Euler(pitch, yaw, roll);
+    //     
+    // }
+    
+    private void HandleInput()
     {
-        // **Get Current Rotation**
-        Vector3 currentRotation = transform.eulerAngles;
+        var currentRotation = transform.eulerAngles;
 
         // Convert rotation to -180 to +180 range
-        float pitch = (currentRotation.x > 180) ? currentRotation.x - 360 : currentRotation.x;
-        float roll = (currentRotation.z > 180) ? currentRotation.z - 360 : currentRotation.z;
-        float yaw = currentRotation.y;
+        var pitch = (currentRotation.x > 180) ? currentRotation.x - 360 : currentRotation.x;
+        var roll = (currentRotation.z > 180) ? currentRotation.z - 360 : currentRotation.z;
+        var yaw = currentRotation.y;
 
         // **Pitch (Nose Up/Down)**
-        float targetPitch = -moveInput.y * maxPitch;
+        var targetPitch = -moveInput.y * maxPitch;
         pitch = Mathf.Lerp(pitch, targetPitch, Time.deltaTime * pitchSpeed);
 
-        // **Roll (Tilt Left/Right)**
-        float targetRoll = -moveInput.x * maxRoll; // "A" rolls left, "D" rolls right
+        // **Roll (Tilt Left/Right) - Optional, reduced**
+        var targetRoll = -moveInput.x * maxRoll; // Reduced roll effect
         roll = Mathf.Lerp(roll, targetRoll, Time.deltaTime * rollSpeed);
-        
+
         // **Yaw Rotation (Turn Left/Right)**
-        float yawChange = moveInput.x * yawSpeed * Time.deltaTime;
-        yaw += yawChange;
-        
+        var targetYaw = yaw + moveInput.x * yawSpeed * Time.deltaTime * 50f;
+        yaw = Mathf.Lerp(yaw, targetYaw, Time.deltaTime * yawSpeed);
+
+        // **Reset Roll and Yaw when no input**
         if (moveInput.x == 0)
         {
             roll = Mathf.Lerp(roll, 0, Time.deltaTime * resetSpeed);
-        }
-        
-        if (Mathf.Abs(moveInput.x) < 0.1f)  
-        {
             yaw = Mathf.Lerp(yaw, currentRotation.y, Time.deltaTime * resetSpeed * 2f);
         }
-        
 
         // **Clamp Rotation to Limits**
         pitch = Mathf.Clamp(pitch, -maxPitch, maxPitch);
@@ -316,6 +343,18 @@ public class PaperPlaneController : MonoBehaviour
 
         // **Apply Rotation**
         transform.rotation = Quaternion.Euler(pitch, yaw, roll);
-        
+    }
+    
+    
+    private void UpdateUI()
+    {
+        if (speedText != null)
+        {
+            speedText.text = Mathf.RoundToInt(rb.linearVelocity.magnitude).ToString();
+        }
+        if (heightText != null)
+        {
+            heightText.text = transform.position.y.ToString("F2");
+        }
     }
 }
